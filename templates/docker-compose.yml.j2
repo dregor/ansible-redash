@@ -1,65 +1,65 @@
 version: '2'
+x-redash-service: &redash-service
+  image: redash/redash:7.0.0.b18042
+  depends_on:
+    - postgres
+    - redis
+  restart: always
 services:
   server:
-    image: {{ redash_registry }}/redash:{{ redash_version }}
+    <<: *redash-service
     command: server
-    depends_on:
-      - redis
     ports:
-      - "{{ redash_http_port }}:5000"
-    extra_hosts:
-      - "pg_host:{{ redash_postgres_host }}"
-    volumes:
-      - ./docker-entrypoint:/app/bin/docker-entrypoint
+      - "5000:5000"
     environment:
+      REDASH_WEB_WORKERS: 4
       PYTHONUNBUFFERED: 0
       REDASH_LOG_LEVEL: "INFO"
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://{{ redash_postgres_user }}:{{ redash_postgres_password }}@{{ redash_postgres_host }}:{{ redash_postgres_port }}/{{ redash_postgres_db }}"
       REDASH_COOKIE_SECRET: {{ redash_cookie_secret }}
-      REDASH_LDAP_LOGIN_ENABLED: 1
-      REDASH_LDAP_URL: "ldap://{{ redash_ldap_host }}:{{ redash_ldap_port }}"
-      REDASH_LDAP_BIND_DN: "cn={{ ldap_bind_username }},ou=users,dc=crowd"
-      REDASH_LDAP_BIND_DN_PASSWORD: "{{ ldap_bind_password }}"
-      REDASH_LDAP_DISPLAY_NAME_KEY: "cn"
-      REDASH_LDAP_EMAIL_KEY: "mail"
-      REDASH_LDAP_LDAP_CUSTOM_USERNAME_PROMPT: "Crowd username"
-      REDASH_LDAP_SEARCH_TEMPLATE: "(uid=%(username)s)"
-      REDASH_SEARCH_DN: "ou=users,dc=crowd"
-      REDASH_PASSWORD_LOGIN_ENABLED: 0
-      REDASH_FEATURE_SHOW_PERMISSIONS_CONTROL: 1
-    logging:
-      driver: syslog
-      options:
-        tag: sentry
-  worker:
-    image: registry.auroraplatform.com/redash:{{ redash_version }}
+      SECRET_KEY: {{ redash_secret_key }}
+  scheduler:
+    <<: *redash-service
     command: scheduler
-    extra_hosts:
-      - "pg_host:{{ redash_postgres_host }}"
-    volumes:
-      - ./docker-entrypoint:/app/bin/docker-entrypoint
     environment:
+      QUEUES: "celery"
+      WORKERS_COUNT: 1
+  scheduled_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 1
+  adhoc_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "queries"
       PYTHONUNBUFFERED: 0
       REDASH_LOG_LEVEL: "INFO"
       REDASH_REDIS_URL: "redis://redis:6379/0"
       REDASH_DATABASE_URL: "postgresql://{{ redash_postgres_user }}:{{ redash_postgres_password }}@{{ redash_postgres_host }}:{{ redash_postgres_port }}/{{ redash_postgres_db }}"
-      QUEUES: "queries,scheduled_queries,celery"
       WORKERS_COUNT: 2
-      REDASH_LDAP_LOGIN_ENABLED: 1
-      REDASH_LDAP_URL: "ldap://{{ redash_ldap_host }}:{{ redash_ldap_port }}"
-      REDASH_LDAP_BIND_DN: "cn={{ ldap_bind_username }},ou=users,dc=crowd"
-      REDASH_LDAP_BIND_DN_PASSWORD: "{{ ldap_bind_password }}"
-      REDASH_LDAP_DISPLAY_NAME_KEY: "cn"
-      REDASH_LDAP_EMAIL_KEY: "mail"
-      REDASH_LDAP_LDAP_CUSTOM_USERNAME_PROMPT: "Crowd username"
-      REDASH_LDAP_SEARCH_TEMPLATE: "(uid=%(username)s)"
-      REDASH_SEARCH_DN: "ou=users,dc=crowd"
-      REDASH_PASSWORD_LOGIN_ENABLED: 0
-      REDASH_FEATURE_SHOW_PERMISSIONS_CONTROL: 1
-    logging:
-      driver: syslog
-      options:
-        tag: sentry
+      SECRET_KEY: {{ redash_secret_key }}
   redis:
-    image: redis:3.0-alpine
+    image: redis:5.0-alpine
+    restart: always
+  postgres:
+    image: postgres:9.5-alpine
+    volumes:
+      - /opt/redash/postgres-data:/var/lib/postgresql/data
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD={{ redash_postgres_password }}
+      - POSTGRES_USER={{ redash_postgres_user }}
+      - POSTGRES_DB={{ redash_postgres_db }}
+  nginx:
+    image: redash/nginx:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    links:
+      - server:redash
+    restart: always
