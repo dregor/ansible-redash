@@ -7,7 +7,11 @@
   file: state=directory path={{ redash_home }} owner={{ redash_user }} recurse=true
 
 - name: copy docker-compose
-  template: backup=yes  dest="{{ redash_home }}/docker-compose.yml" owner={{ redash_user }}  src=docker-compose.yml.j2
+  template: dest="{{ redash_home }}/docker-compose.yml" owner={{ redash_user }}  src=docker-compose.yml.j2
+  notify: rebuild redash
+
+- name: copy env file
+  template: dest="{{ redash_home }}/env" owner={{ redash_user }} src=env.j2
   notify: rebuild redash
 
 - name: get actual docker-entrypoint file

@@ -5,6 +5,7 @@ x-redash-service: &redash-service
     - postgres
     - redis
   restart: always
+  env_file: /opt/redash/env
 services:
   server:
     <<: *redash-service
@@ -13,12 +14,6 @@ services:
       - "5000:5000"
     environment:
       REDASH_WEB_WORKERS: 4
-      PYTHONUNBUFFERED: 0
-      REDASH_LOG_LEVEL: "INFO"
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://{{ redash_postgres_user }}:{{ redash_postgres_password }}@{{ redash_postgres_host }}:{{ redash_postgres_port }}/{{ redash_postgres_db }}"
-      REDASH_COOKIE_SECRET: {{ redash_cookie_secret }}
-      SECRET_KEY: {{ redash_secret_key }}
   scheduler:
     <<: *redash-service
     command: scheduler
@@ -36,12 +31,7 @@ services:
     command: worker
     environment:
       QUEUES: "queries"
-      PYTHONUNBUFFERED: 0
-      REDASH_LOG_LEVEL: "INFO"
-      REDASH_REDIS_URL: "redis://redis:6379/0"
-      REDASH_DATABASE_URL: "postgresql://{{ redash_postgres_user }}:{{ redash_postgres_password }}@{{ redash_postgres_host }}:{{ redash_postgres_port }}/{{ redash_postgres_db }}"
       WORKERS_COUNT: 2
-      SECRET_KEY: {{ redash_secret_key }}
   redis:
     image: redis:5.0-alpine
     restart: always
