@@ -10,5 +10,5 @@ redash_http_port: 5500
 redash_home: '/opt/redash'
 redash_user: 'redash'
 
-redash_version: '7.0.0'
-redash_registry: 'redash'
+redash_branch: 'master'
+redash_image: '7.0.0.b18042'

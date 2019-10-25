@@ -16,7 +16,7 @@
 
 - name: get actual docker-entrypoint file
   get_url:
-    url: https://raw.githubusercontent.com/getredash/redash/master/bin/docker-entrypoint
+    url: https://raw.githubusercontent.com/getredash/redash/{{ redash_branch }}/bin/docker-entrypoint
     dest: "{{ redash_home }}/docker-entrypoint"
     mode: 0755
     force: yes
